@@ -1,4 +1,5 @@
 import java.io.File;
+import java.sql.SQLOutput;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Scanner;
@@ -6,19 +7,21 @@ import java.util.Scanner;
 public class MaquinaTuring {
 
     private String cadena;
+    private int cabezaLectora;
+    private char simboloBlanco;
     private String estadoActual;
     private String estadoInicial;
-    private char simboloInicialPila;
     private HashSet<String> estados;
-    private Pila pila;
+    private HashSet<String> estadosFinales;
     private Alfabeto alfabeto;
+    private Alfabeto alfabetoCinta;
     private ArrayList<Transicion> transiciones;
 
     public MaquinaTuring() {
         estados = new HashSet<String>();
-        pila = new Pila();
         alfabeto = new Alfabeto();
         transiciones = new ArrayList<Transicion>();
+        cabezaLectora = 0;
     }
 
     private void leerFichero(String path) throws Exception {
@@ -45,10 +48,10 @@ public class MaquinaTuring {
             alfabeto.anadirAlfabeto(c);
         }
 
-        String lineaAlfabetoPila = sc.nextLine();
-        for(int i = 0; i < lineaAlfabetoPila.length(); i++) {
-            char c = lineaAlfabetoPila.charAt(i);
-            pila.anadirAlfabeto(c);
+        String lineaAlfabetoCinta = sc.nextLine();
+        for(int i = 0; i < lineaAlfabetoCinta.length(); i++) {
+            char c = lineaAlfabetoCinta.charAt(i);
+            alfabetoCinta.anadirAlfabeto(c);
         }
 
         String estadoInicial = sc.nextLine();
@@ -60,100 +63,85 @@ public class MaquinaTuring {
             throw new Exception("El estado inicial no se encuentra en la lista de estados");
 
 
-        char simboloInicial = sc.nextLine().charAt(0);
-        if (pila.estaEnAlfabeto(simboloInicial)) {
-            pila.empilar(simboloInicial);
-            this.simboloInicialPila = simboloInicial;
+        char simboloBlanco = sc.nextLine().charAt(0);
+        if (alfabetoCinta.estaEnAlfabeto(simboloBlanco)) {
+            this.simboloBlanco = simboloBlanco;
         }
         else
-            throw new Exception("El simbolo inicial de la pila no se encuentra en el alfabeto de la pila");
+            throw new Exception("El simbolo blanco no se encuentr en el alfabeto de la cinta");
+
+        String lineaEstadosFinales = sc.nextLine();
+        sc2 = new Scanner(lineaEstadosFinales);
+        while (sc2.hasNext()) {
+            String estadoFinal = sc2.next();
+            estadosFinales.add(estadoFinal);
+        }
+        sc2.close();
 
         while (sc.hasNextLine()) {           //Leemos las transiciones
             sc2 = new Scanner(sc.nextLine());
             String estadoAnterior = sc2.next();
             char primerSimbolo = sc2.next().charAt(0);
-            char simboloCimaPila = sc2.next().charAt(0);
             String estadoSiguiente = sc2.next();
-            String simbolosPilaSiguiente = "";
-            while (sc2.hasNext()){
-                char otroSimbolo = sc2.next().charAt(0);
-                if (pila.estaEnAlfabeto(otroSimbolo) || otroSimbolo=='.') {
-                    simbolosPilaSiguiente = simbolosPilaSiguiente + otroSimbolo;
-                }
-                else throw new Exception("La transicion contiene algun simbolo que no esta en el alfabeto de la pila");
-            }
+            char simboloCinta = sc2.next().charAt(0);
+            char movimiento = sc2.next().charAt(0);
             sc2.close();
 
             if (estados.contains(estadoAnterior) && estados.contains(estadoSiguiente)
-                && (alfabeto.estaEnAlfabeto(primerSimbolo) || primerSimbolo=='.' ) && pila.estaEnAlfabeto(simboloCimaPila)) {
-                Transicion transicion = new Transicion(estadoAnterior, primerSimbolo, simboloCimaPila, estadoSiguiente, simbolosPilaSiguiente);
+                && (alfabeto.estaEnAlfabeto(primerSimbolo) || primerSimbolo == simboloBlanco )
+                    && (alfabetoCinta.estaEnAlfabeto(simboloCinta)) || simboloCinta == simboloBlanco) {
+                Transicion transicion = new Transicion(estadoAnterior, primerSimbolo, estadoSiguiente, simboloCinta, movimiento);
                 transiciones.add(transicion);
             }
         }
 
         sc.close();
     }
-    public void iniciar(String cad) {
-        if (recorrerRecursivo(cad, pila)) {
-            System.out.println("La palabra SÍ es aceptada por el lenguaje");
-        }
-        else {
-            System.out.println("La palabra NO es aceptada por el lenguaje");
-        }
-    }
-    public boolean recorrerRecursivo(String cad, Pila pila) {
-        System.out.println("Cadena actual: " + cad + " Estado actual de la pila: " + pila + " Estado actual: " + estadoActual);
-        if (cad.length() == 0 && pila.estaVacia()) {
-            return true;
-        }
-        else if (cad.length() > 0 && pila.estaVacia()) {
-            return false;
-        }
-        else {
-            char simbolo = '.';
-            if(cad.length()>0) {
-                simbolo = cad.charAt(0);
-            }
-            String copyEstado = estadoActual + "";
-            String copyCad = cad + "";
-            Pila copyPila = pila.copiarPila();
-            for (Transicion tr : transiciones) {
-                if ((pila.cima() == tr.getSimboloCimaPila()) && (estadoActual.compareTo(tr.getEstadoAnterior()) == 0)) {
-                    if (tr.getPrimerSimbolo() == '.' || simbolo == tr.getPrimerSimbolo()) {
-                        if(tr.getPrimerSimbolo() != '.')
-                            cad = cad.substring(1);
-                        transicionar(tr, pila);
-                        boolean isAccepted = recorrerRecursivo(cad, pila);
-                        if (isAccepted) return true;
-                        else {
-                            cad = copyCad;
-                            pila = copyPila.copiarPila();
-                            estadoActual = copyEstado;
-                            System.out.println("Solución no encontrada por esa rama. Retrocediendo.");
-                            System.out.println("Cadena actual: " + cad + " Estado actual de la pila: " + pila.toString() + " Estado actual: " + estadoActual);
+
+    public void recorrer() {
+            while (true) {
+                if (cabezaLectora >= 0 && cabezaLectora < cadena.length()) {
+                    char simbolo = cadena.charAt(cabezaLectora);
+                    boolean transicionEncontrada = false;
+                    for (Transicion tr : transiciones) {
+                        if (simbolo == tr.getPrimerSimbolo() && (estadoActual.compareTo(tr.getEstadoAnterior()) == 0)) {
+                            transicionar(tr);
+                            transicionEncontrada = true;
                         }
                     }
+                    if (!transicionEncontrada) break;
+                } else {
+                    break;
                 }
             }
-            return false;
-        }
-    }
 
-    private void transicionar(Transicion transicion, Pila pila) {
-        pila.desempilar();
-        estadoActual = transicion.getEstadoSiguiente();
-        if (transicion.getSimbolosPilaSiguiente().compareTo(".") != 0) {
-            String aEmpilar = transicion.getSimbolosPilaSiguiente();
-            for (int i = aEmpilar.length()-1; i >= 0; i--) {
-                pila.empilar(aEmpilar.charAt(i));
+            if (estadosFinales.contains(estadoActual)) {
+                System.out.println("La máquina se ha detenido cuando se encontraba en un estado final");
+                while (cadena.charAt(cabezaLectora) != simboloBlanco) {
+                    System.out.print(cadena.charAt(cabezaLectora));
+                    cabezaLectora++;
+                }
             }
+    }
+
+    private void transicionar(Transicion transicion) {
+        estadoActual = transicion.getEstadoSiguiente();
+
+        char[] newString = cadena.toCharArray();
+        newString[cabezaLectora] = transicion.getSimboloAEscribir();
+        cadena = String.valueOf(newString);
+
+        if (transicion.getMovimientoCinta() == 'R') {
+            cabezaLectora = cabezaLectora + 1;
+        } else {
+            cabezaLectora = cabezaLectora - 1;
         }
     }
 
-    private void resetAutomata() {
-        pila.vaciar();
-        pila.empilar(simboloInicialPila);
+    private void resetAutomata(String cadena) {
         estadoActual = estadoInicial;
+        cabezaLectora = 0;
+        this.cadena = cadena + (simboloBlanco * 30);
     }
 
     private boolean comprobarCadena (String cadena) {
@@ -178,8 +166,8 @@ public class MaquinaTuring {
 
         while (cadena.compareTo("FIN") != 0) {
             if (maquinaTuring.comprobarCadena(cadena)) {
-                maquinaTuring.resetAutomata();
-                maquinaTuring.iniciar(cadena);
+                maquinaTuring.resetAutomata(cadena);
+                maquinaTuring.recorrer();
             }
             System.out.println("Introduce la cadena que quieras comprobar. Para terminar, introduce FIN");
             cadena = input.nextLine();
