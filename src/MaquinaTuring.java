@@ -1,6 +1,7 @@
 import java.io.File;
 import java.sql.SQLOutput;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Scanner;
 
@@ -19,7 +20,9 @@ public class MaquinaTuring {
 
     public MaquinaTuring() {
         estados = new HashSet<String>();
+        estadosFinales = new HashSet<String>();
         alfabeto = new Alfabeto();
+        alfabetoCinta = new Alfabeto();
         transiciones = new ArrayList<Transicion>();
         cabezaLectora = 0;
     }
@@ -41,6 +44,7 @@ public class MaquinaTuring {
             estados.add(estado);
         }
         sc2.close();
+
 
         String lineaAlfabeto = sc.nextLine();
         for(int i = 0; i < lineaAlfabeto.length(); i++) {
@@ -68,13 +72,17 @@ public class MaquinaTuring {
             this.simboloBlanco = simboloBlanco;
         }
         else
-            throw new Exception("El simbolo blanco no se encuentr en el alfabeto de la cinta");
+            throw new Exception("El simbolo blanco no se encuentra en el alfabeto de la cinta");
 
         String lineaEstadosFinales = sc.nextLine();
         sc2 = new Scanner(lineaEstadosFinales);
         while (sc2.hasNext()) {
             String estadoFinal = sc2.next();
-            estadosFinales.add(estadoFinal);
+            if(estados.contains(estadoFinal)) {
+                estadosFinales.add(estadoFinal);
+            }
+            else
+                throw new Exception("Un estado final no pertenece al conjunto de estados posibles");
         }
         sc2.close();
 
@@ -89,9 +97,13 @@ public class MaquinaTuring {
 
             if (estados.contains(estadoAnterior) && estados.contains(estadoSiguiente)
                 && (alfabeto.estaEnAlfabeto(primerSimbolo) || primerSimbolo == simboloBlanco )
-                    && (alfabetoCinta.estaEnAlfabeto(simboloCinta)) || simboloCinta == simboloBlanco) {
+                    && (alfabetoCinta.estaEnAlfabeto(simboloCinta) || simboloCinta == simboloBlanco)
+                        && (movimiento == 'L' || movimiento == 'R')) {
                 Transicion transicion = new Transicion(estadoAnterior, primerSimbolo, estadoSiguiente, simboloCinta, movimiento);
                 transiciones.add(transicion);
+            }
+            else {
+                throw new Exception("Transicion mal formalizada. Repasa que los estados, los simbolos y el movimiento sean correctos");
             }
         }
 
@@ -107,6 +119,7 @@ public class MaquinaTuring {
                         if (simbolo == tr.getPrimerSimbolo() && (estadoActual.compareTo(tr.getEstadoAnterior()) == 0)) {
                             transicionar(tr);
                             transicionEncontrada = true;
+                            break;
                         }
                     }
                     if (!transicionEncontrada) break;
@@ -114,14 +127,9 @@ public class MaquinaTuring {
                     break;
                 }
             }
+            System.out.println(estadoActual);
+            imprimirResultado();
 
-            if (estadosFinales.contains(estadoActual)) {
-                System.out.println("La máquina se ha detenido cuando se encontraba en un estado final");
-                while (cadena.charAt(cabezaLectora) != simboloBlanco) {
-                    System.out.print(cadena.charAt(cabezaLectora));
-                    cabezaLectora++;
-                }
-            }
     }
 
     private void transicionar(Transicion transicion) {
@@ -138,10 +146,38 @@ public class MaquinaTuring {
         }
     }
 
+    private void imprimirResultado() {
+        if (estadosFinales.contains(estadoActual)) {
+            System.out.println("La máquina se ha detenido en un estado final. La maquina ha reconocido la cadena.");
+            while (cadena.charAt(cabezaLectora) != simboloBlanco) {
+                System.out.print(cadena.charAt(cabezaLectora));
+                cabezaLectora++;
+            }
+        }
+        else {
+            System.out.println("la maquina se ha detenido en un estado NO final. La maquina NO ha reconocido la cadena.");
+        }
+        if (cadena.charAt(cabezaLectora) == simboloBlanco) {
+            System.out.println("La cabeza lectora se ha detenido en un simbolo vacio. No quedan caracteres a la derecha de la cabeza lectora.");
+        }
+        else {
+            System.out.println("Cadena desde la cabeza lectora hasta primer simbolo blanco:");
+            while(cadena.charAt(cabezaLectora) != simboloBlanco) {
+                System.out.print(cadena.charAt(cabezaLectora));
+                cabezaLectora++;
+            }
+        }
+
+    }
+
     private void resetAutomata(String cadena) {
         estadoActual = estadoInicial;
         cabezaLectora = 0;
-        this.cadena = cadena + (simboloBlanco * 30);
+
+        char[] rellenoSimbolosBlancos = new char[30];
+        Arrays.fill(rellenoSimbolosBlancos, simboloBlanco);
+        this.cadena = cadena + new String(rellenoSimbolosBlancos);
+        System.out.println(this.cadena);
     }
 
     private boolean comprobarCadena (String cadena) {
@@ -157,13 +193,12 @@ public class MaquinaTuring {
     public static void main(String[] args) throws Exception {
         Scanner input = new Scanner(System.in);
         MaquinaTuring maquinaTuring = new MaquinaTuring();
-        System.out.println("Automáta de vaciado de pila. Introduce el nombre del fichero que quieres procesar: ");
+        System.out.println("Maquina de Turing. Introduce el nombre del fichero que quieres procesar: ");
         String fichero = input.nextLine();
         maquinaTuring.leerFichero(fichero);
         System.out.println("Fichero leído correctamente. Introduce la cadena que quieras comprobar. Para terminar, introduce FIN");
 
         String cadena = input.nextLine();
-
         while (cadena.compareTo("FIN") != 0) {
             if (maquinaTuring.comprobarCadena(cadena)) {
                 maquinaTuring.resetAutomata(cadena);
