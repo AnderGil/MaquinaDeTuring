@@ -24,11 +24,12 @@ public class MaquinaTuring {
         alfabeto = new Alfabeto();
         alfabetoCinta = new Alfabeto();
         transiciones = new ArrayList<Transicion>();
-        cabezaLectora = 0;
+        cabezaLectora = 30;
     }
 
     private void leerFichero(String path) throws Exception {
         File fichero = new File(path);
+        if (!fichero.exists()) throw new Exception("El fichero no existe");
         Scanner sc = new Scanner(fichero);
         String lineaEstados;
         while (true) {
@@ -96,7 +97,7 @@ public class MaquinaTuring {
             sc2.close();
 
             if (estados.contains(estadoAnterior) && estados.contains(estadoSiguiente)
-                && (alfabeto.estaEnAlfabeto(primerSimbolo) || primerSimbolo == simboloBlanco )
+                && ((alfabeto.estaEnAlfabeto(primerSimbolo) || alfabetoCinta.estaEnAlfabeto(primerSimbolo)) || primerSimbolo == simboloBlanco )
                     && (alfabetoCinta.estaEnAlfabeto(simboloCinta) || simboloCinta == simboloBlanco)
                         && (movimiento == 'L' || movimiento == 'R')) {
                 Transicion transicion = new Transicion(estadoAnterior, primerSimbolo, estadoSiguiente, simboloCinta, movimiento);
@@ -127,7 +128,7 @@ public class MaquinaTuring {
                     break;
                 }
             }
-            System.out.println(estadoActual);
+
             imprimirResultado();
 
     }
@@ -148,15 +149,12 @@ public class MaquinaTuring {
 
     private void imprimirResultado() {
         if (estadosFinales.contains(estadoActual)) {
-            System.out.println("La máquina se ha detenido en un estado final. La maquina ha reconocido la cadena.");
-            while (cadena.charAt(cabezaLectora) != simboloBlanco) {
-                System.out.print(cadena.charAt(cabezaLectora));
-                cabezaLectora++;
-            }
+            System.out.println("La máquina SI se ha detenido en un estado final. La maquina SI ha reconocido la cadena.");
         }
         else {
-            System.out.println("la maquina se ha detenido en un estado NO final. La maquina NO ha reconocido la cadena.");
+            System.out.println("La maquina se ha detenido en un estado NO final. La maquina NO ha reconocido la cadena.");
         }
+
         if (cadena.charAt(cabezaLectora) == simboloBlanco) {
             System.out.println("La cabeza lectora se ha detenido en un simbolo vacio. No quedan caracteres a la derecha de la cabeza lectora.");
         }
@@ -166,18 +164,18 @@ public class MaquinaTuring {
                 System.out.print(cadena.charAt(cabezaLectora));
                 cabezaLectora++;
             }
+            System.out.println();
         }
 
     }
 
     private void resetAutomata(String cadena) {
         estadoActual = estadoInicial;
-        cabezaLectora = 0;
+        cabezaLectora = 30;
 
         char[] rellenoSimbolosBlancos = new char[30];
         Arrays.fill(rellenoSimbolosBlancos, simboloBlanco);
-        this.cadena = cadena + new String(rellenoSimbolosBlancos);
-        System.out.println(this.cadena);
+        this.cadena = new String(rellenoSimbolosBlancos) + cadena + new String(rellenoSimbolosBlancos);
     }
 
     private boolean comprobarCadena (String cadena) {
@@ -191,7 +189,9 @@ public class MaquinaTuring {
     }
 
     public static void main(String[] args) throws Exception {
+
         Scanner input = new Scanner(System.in);
+
         MaquinaTuring maquinaTuring = new MaquinaTuring();
         System.out.println("Maquina de Turing. Introduce el nombre del fichero que quieres procesar: ");
         String fichero = input.nextLine();
@@ -207,5 +207,6 @@ public class MaquinaTuring {
             System.out.println("Introduce la cadena que quieras comprobar. Para terminar, introduce FIN");
             cadena = input.nextLine();
         }
+
     }
 }
